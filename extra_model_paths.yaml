@@ -14,6 +14,7 @@ network_volume:
     text_encoders: text_encoders
     unet: unet
     upscale_models: upscale_models
+    SEEDVR2: SEEDVR2
     latent_upscale_models: latent_upscale_models
     detection: detection
     vae: vae
