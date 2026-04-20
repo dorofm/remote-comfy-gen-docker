@@ -86,7 +86,6 @@ import safetensors; print(f'safetensors {safetensors.__version__}'); \
 import transformers; print(f'transformers {transformers.__version__}'); \
 import kornia; print('kornia OK'); \
 import spandrel; print('spandrel OK'); \
-import sageattention; print('sageattention OK'); \
 "
 
 # CivitAI downloader (uses aria2c which is already installed above)
