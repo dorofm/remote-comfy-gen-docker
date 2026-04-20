@@ -62,6 +62,7 @@ RUN for repo in \
     https://github.com/bash-j/mikey_nodes.git \
     https://github.com/rgthree/rgthree-comfy.git \
     https://github.com/WASasquatch/was-node-suite-comfyui.git; \
+    https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
