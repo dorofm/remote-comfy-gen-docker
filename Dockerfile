@@ -28,10 +28,6 @@ RUN pip install --upgrade pip setuptools wheel packaging && \
 # Freeze torch versions to prevent custom node deps from upgrading/downgrading
 RUN pip freeze | grep -E "^(torch|torchvision|torchaudio|torchsde)==" > /torch-constraint.txt
 
-# SageAttention (pre-built wheel)
-COPY sageattention-2.2.0-cp312-cp312-linux_x86_64.whl /tmp/
-RUN pip install /tmp/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl && \
-    rm /tmp/sageattention-2.2.0-cp312-cp312-linux_x86_64.whl
 
 # RunPod SDK + runtime deps
 RUN pip install runpod boto3 requests websocket-client
