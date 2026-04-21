@@ -98,6 +98,9 @@ RUN git clone --depth 1 https://github.com/Hearmeman24/CivitAI_Downloader /tools
 
 # extra_model_paths.yaml tells ComfyUI to look at network volume for models
 COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
+RUN mkdir -p /ComfyUI/models/ultralytics/bbox && \
+    wget -q -O /ComfyUI/models/ultralytics/bbox/face_yolov8m.pt \
+    https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt
 COPY log_forwarder.py /log_forwarder.py
 COPY start_script.sh /start_script.sh
 RUN chmod +x /start_script.sh
