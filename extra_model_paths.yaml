@@ -18,4 +18,5 @@ network_volume:
     latent_upscale_models: latent_upscale_models
     model_patches: model_patches
     detection: detection
+    ultralytics_bbox: ultralytics/bbox
     vae: vae
