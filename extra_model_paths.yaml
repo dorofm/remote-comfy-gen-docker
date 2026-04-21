@@ -16,5 +16,6 @@ network_volume:
     upscale_models: upscale_models
     SEEDVR2: SEEDVR2
     latent_upscale_models: latent_upscale_models
+    model_patches: model_patches
     detection: detection
     vae: vae
