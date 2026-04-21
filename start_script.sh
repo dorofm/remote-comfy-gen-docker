@@ -51,5 +51,12 @@ fi
 echo "[start_script] Runtime repo ready at $RUNTIME_DIR (ref: $RUNTIME_REPO_REF)"
 
 # --- Hand off to runtime start.sh ---
+# --- Ensure ultralytics bbox symlink ---
+mkdir -p /runpod-volume/ComfyUI/models/ultralytics/bbox
+if [ -f "/runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt" ] && \
+   [ ! -f "/runpod-volume/ComfyUI/models/ultralytics/bbox/face_yolov8m.pt" ]; then
+    ln -s /runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt \
+          /runpod-volume/ComfyUI/models/ultralytics/bbox/face_yolov8m.pt
+fi
 echo "[start_script] Launching runtime start.sh..."
 exec bash "$RUNTIME_DIR/start.sh"
