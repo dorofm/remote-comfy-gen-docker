@@ -35,6 +35,7 @@ RUN pip install runpod boto3 requests websocket-client
 # Clone and install all custom nodes (baked for fast cold starts)
 # Each node: clone repo, install requirements.txt (constrained to frozen torch),
 # run install.py if present. This avoids runtime dep installation.
+RUN pip install ultralytics
 RUN for repo in \
     https://github.com/M1kep/ComfyLiterals.git \
     https://github.com/yolain/ComfyUI-Easy-Use.git \
