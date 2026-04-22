@@ -101,7 +101,11 @@ COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
 RUN mkdir -p /ComfyUI/models/ultralytics/bbox && \
     wget -O /ComfyUI/models/ultralytics/bbox/face_yolov8m.pt \
     https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt && \
-    ls -lh /ComfyUI/models/ultralytics/bbox/face_yolov8m.pt
+    wget -O /ComfyUI/models/ultralytics/bbox/pussyV2.pt \
+    https://huggingface.co/vermin94/nipples_yolov8s.pt/resolve/main/pussyV2.pt && \
+    wget -O /ComfyUI/models/ultralytics/bbox/nipples.pt \
+    https://huggingface.co/vermin94/nipples_yolov8s.pt/resolve/main/nipples_yolov8s.pt && \
+    ls -lh /ComfyUI/models/ultralytics/bbox/
 RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "/runpod-volume/ComfyUI/models/ultralytics/bbox"]:\n    folder_paths.add_model_folder_path("ultralytics_bbox", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_ultralytics_bbox.py
 COPY log_forwarder.py /log_forwarder.py
 COPY start_script.sh /start_script.sh
