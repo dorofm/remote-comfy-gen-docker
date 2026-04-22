@@ -58,5 +58,24 @@ if [ -f "/runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt" ] && \
     ln -s /runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt \
           /runpod-volume/ComfyUI/models/ultralytics/bbox/face_yolov8m.pt
 fi
+# Patch worker.py: handle prefixed model names like "bbox/face_yolov8m.pt"
+WORKER_PY="$RUNTIME_DIR/worker.py"
+if [ -f "$WORKER_PY" ]; then
+    python3 - "$WORKER_PY" << 'PYEOF'
+import sys
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+old = '            if filename in files:\n                path = os.path.join(root, filename)'
+new = '            _fn = os.path.basename(filename)\n            if _fn in files:\n                path = os.path.join(root, _fn)'
+if old in content and '_fn' not in content:
+    content = content.replace(old, new)
+    with open(path, 'w') as f:
+        f.write(content)
+    print('[patch] worker.py patched: basename handling added')
+else:
+    print('[patch] worker.py: already patched or pattern not found')
+PYEOF
+fi
 echo "[start_script] Launching runtime start.sh..."
 exec bash "$RUNTIME_DIR/start.sh"
