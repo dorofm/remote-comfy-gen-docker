@@ -65,16 +65,26 @@ if [ -f "$WORKER_PY" ]; then
 import sys
 path = sys.argv[1]
 with open(path) as f:
-    content = f.read()
-old = '            if filename in files:\n                path = os.path.join(root, filename)'
-new = '            _fn = os.path.basename(filename)\n            if _fn in files:\n                path = os.path.join(root, _fn)'
-if old in content and '_fn' not in content:
-    content = content.replace(old, new)
+    lines = f.readlines()
+new_lines = []
+patched = False
+for line in lines:
+    if 'if filename in files:' in line and '_fn' not in line:
+        indent = len(line) - len(line.lstrip())
+        new_lines.append(' ' * indent + '_fn = os.path.basename(filename)\n')
+        new_lines.append(line.replace('filename', '_fn', 1))
+        patched = True
+    elif 'path = os.path.join(root, filename)' in line and '_fn' not in line:
+        new_lines.append(line.replace('os.path.join(root, filename)', 'os.path.join(root, _fn)'))
+        patched = True
+    else:
+        new_lines.append(line)
+if patched:
     with open(path, 'w') as f:
-        f.write(content)
-    print('[patch] worker.py patched: basename handling added')
+        f.writelines(new_lines)
+    print('[patch] worker.py patched OK')
 else:
-    print('[patch] worker.py: already patched or pattern not found')
+    print('[patch] worker.py: no changes (already patched or not found)')
 PYEOF
 fi
 echo "[start_script] Launching runtime start.sh..."
