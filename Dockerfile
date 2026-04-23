@@ -22,8 +22,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # ComfyUI + all deps (includes torch, safetensors, transformers, etc.)
 # Keep ComfyUI in /ComfyUI (baked into image) for fast cold starts
 RUN pip install --upgrade pip setuptools wheel packaging && \
-    git clone https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
-    git -C /ComfyUI checkout 084e08c6e2d1c2c450fb74ec4f2ac39c31ea69bc && \
+    git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
     pip install -r /ComfyUI/requirements.txt
 
 # Freeze torch versions to prevent custom node deps from upgrading/downgrading
@@ -86,15 +85,20 @@ RUN for repo in \
     fi; \
   done
 
-# VideoX-Fun: install with torch constraint, then register as editable package
-# so relative imports (from ...videox_fun.models import ...) resolve correctly
+# VideoX-Fun: clone, install deps, register as editable package for relative imports,
+# then replace __init__.py with a minimal version that only loads z_image nodes
+# (the original __init__.py imports CogVideoX/Flux2/Wan which fail without their deps)
 RUN cd /ComfyUI/custom_nodes && \
     git clone --depth 1 https://github.com/aigc-apps/VideoX-Fun.git && \
     pip install -r /ComfyUI/custom_nodes/VideoX-Fun/requirements.txt \
         --constraint /torch-constraint.txt || \
         echo "WARNING: some VideoX-Fun deps failed (continuing)" && \
     pip install -e /ComfyUI/custom_nodes/VideoX-Fun/ --constraint /torch-constraint.txt || \
-        echo "WARNING: VideoX-Fun editable install failed (continuing)"
+        echo "WARNING: VideoX-Fun editable install failed (continuing)" && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/__init__.py && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/z_image/__init__.py && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/annotator/__init__.py
+COPY vxfun_init.py /ComfyUI/custom_nodes/VideoX-Fun/__init__.py
 
 # Verify key imports (fail fast if something is broken)
 RUN python3 -c "\
