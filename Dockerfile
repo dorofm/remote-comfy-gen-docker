@@ -85,13 +85,15 @@ RUN for repo in \
     fi; \
   done
 
-# VideoX-Fun: install with torch constraint to prevent version conflicts
-# (install.py skipped intentionally — it runs pip without constraint)
+# VideoX-Fun: install with torch constraint, then register as editable package
+# so relative imports (from ...videox_fun.models import ...) resolve correctly
 RUN cd /ComfyUI/custom_nodes && \
     git clone --depth 1 https://github.com/aigc-apps/VideoX-Fun.git && \
     pip install -r /ComfyUI/custom_nodes/VideoX-Fun/requirements.txt \
         --constraint /torch-constraint.txt || \
-        echo "WARNING: some VideoX-Fun deps failed (continuing)"
+        echo "WARNING: some VideoX-Fun deps failed (continuing)" && \
+    pip install -e /ComfyUI/custom_nodes/VideoX-Fun/ --no-deps || \
+        echo "WARNING: VideoX-Fun editable install failed (continuing)"
 
 # Verify key imports (fail fast if something is broken)
 RUN python3 -c "\
