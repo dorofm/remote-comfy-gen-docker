@@ -116,6 +116,10 @@ RUN mkdir -p /ComfyUI/models/ultralytics/bbox && \
     https://huggingface.co/vermin94/nipples_yolov8s.pt/resolve/main/nipples_yolov8s.pt && \
     ls -lh /ComfyUI/models/ultralytics/bbox/
 RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "/runpod-volume/ComfyUI/models/ultralytics/bbox"]:\n    folder_paths.add_model_folder_path("ultralytics_bbox", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_ultralytics_bbox.py
+# VideoX-Fun: LoadZImageControlNetInModel uses "model_patches" folder type,
+# but our ControlNet weights live in the "controlnet" folder on the volume.
+# Register controlnet paths as additional model_patches search paths.
+RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/controlnet", "/runpod-volume/ComfyUI/models/controlnet"]:\n    folder_paths.add_model_folder_path("model_patches", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_vxfun_model_patches.py
 COPY log_forwarder.py /log_forwarder.py
 COPY start_script.sh /start_script.sh
 RUN chmod +x /start_script.sh
