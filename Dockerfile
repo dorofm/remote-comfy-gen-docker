@@ -92,7 +92,7 @@ RUN cd /ComfyUI/custom_nodes && \
     pip install -r /ComfyUI/custom_nodes/VideoX-Fun/requirements.txt \
         --constraint /torch-constraint.txt || \
         echo "WARNING: some VideoX-Fun deps failed (continuing)" && \
-    pip install -e /ComfyUI/custom_nodes/VideoX-Fun/ --no-deps || \
+    pip install -e /ComfyUI/custom_nodes/VideoX-Fun/ --constraint /torch-constraint.txt || \
         echo "WARNING: VideoX-Fun editable install failed (continuing)"
 
 # Verify key imports (fail fast if something is broken)
@@ -102,6 +102,8 @@ import safetensors; print(f'safetensors {safetensors.__version__}'); \
 import transformers; print(f'transformers {transformers.__version__}'); \
 import kornia; print('kornia OK'); \
 import spandrel; print('spandrel OK'); \
+import videox_fun; print('videox_fun OK'); \
+from videox_fun.nodes import NODE_CLASS_MAPPINGS; print(f'VideoX-Fun nodes: {len(NODE_CLASS_MAPPINGS)} registered'); \
 "
 
 # CivitAI downloader (uses aria2c which is already installed above)
