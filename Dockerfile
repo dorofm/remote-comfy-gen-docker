@@ -66,7 +66,8 @@ RUN for repo in \
     https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
     https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
     https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
-    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git; \
+    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
+    https://github.com/hinablue/ComfyUI_3dPoseEditor.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
@@ -83,6 +84,14 @@ RUN for repo in \
         echo "WARNING: install.py failed for $repo_dir (continuing)"; \
     fi; \
   done
+
+# VideoX-Fun: install with torch constraint to prevent version conflicts
+# (install.py skipped intentionally — it runs pip without constraint)
+RUN cd /ComfyUI/custom_nodes && \
+    git clone --depth 1 https://github.com/aigc-apps/VideoX-Fun.git && \
+    pip install -r /ComfyUI/custom_nodes/VideoX-Fun/requirements.txt \
+        --constraint /torch-constraint.txt || \
+        echo "WARNING: some VideoX-Fun deps failed (continuing)"
 
 # Verify key imports (fail fast if something is broken)
 RUN python3 -c "\
