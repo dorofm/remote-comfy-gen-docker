@@ -102,8 +102,8 @@ import safetensors; print(f'safetensors {safetensors.__version__}'); \
 import transformers; print(f'transformers {transformers.__version__}'); \
 import kornia; print('kornia OK'); \
 import spandrel; print('spandrel OK'); \
-import videox_fun; print('videox_fun OK'); \
-from videox_fun.nodes import NODE_CLASS_MAPPINGS; print(f'VideoX-Fun nodes: {len(NODE_CLASS_MAPPINGS)} registered'); \
+import videox_fun; print(f'videox_fun OK'); \
+import videox_fun.models; print('videox_fun.models OK'); \
 "
 
 # CivitAI downloader (uses aria2c which is already installed above)
