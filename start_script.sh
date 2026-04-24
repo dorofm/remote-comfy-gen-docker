@@ -95,18 +95,6 @@ if [ -f "$RUNTIME_VXFUN" ]; then
     cp "$RUNTIME_VXFUN" "$VXFUN_INIT"
 fi
 
-# --- Download qwen3_tokenizer to volume if missing ---
-TOKENIZER_DST="/runpod-volume/ComfyUI/models/Fun_Models/qwen3_tokenizer"
-if [ ! -d "$TOKENIZER_DST" ]; then
-    echo "[start_script] Downloading qwen3_tokenizer to volume..."
-    mkdir -p "$TOKENIZER_DST"
-    python3 -c "
-from transformers import AutoTokenizer
-tok = AutoTokenizer.from_pretrained('Qwen/Qwen3-4B', trust_remote_code=True)
-tok.save_pretrained('$TOKENIZER_DST')
-print('[start_script] qwen3_tokenizer saved to $TOKENIZER_DST')
-" || echo "[start_script] WARNING: qwen3_tokenizer download failed (continuing)"
-fi
 
 echo "[start_script] Launching runtime start.sh..."
 exec bash "$RUNTIME_DIR/start.sh"

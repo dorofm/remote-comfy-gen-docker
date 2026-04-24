@@ -111,6 +111,15 @@ import videox_fun; print(f'videox_fun OK'); \
 import videox_fun.models; print('videox_fun.models OK'); \
 "
 
+# qwen3_tokenizer: needed by VideoX-Fun LoadZImageTextEncoderModel
+# Search path: folder_paths.models_dir/Fun_Models/qwen3_tokenizer
+RUN python3 -c "
+from transformers import AutoTokenizer
+tok = AutoTokenizer.from_pretrained('Qwen/Qwen3-4B', trust_remote_code=True)
+tok.save_pretrained('/ComfyUI/models/Fun_Models/qwen3_tokenizer')
+print('qwen3_tokenizer saved')
+"
+
 # CivitAI downloader (uses aria2c which is already installed above)
 RUN git clone --depth 1 https://github.com/Hearmeman24/CivitAI_Downloader /tools/civitai-downloader
 
