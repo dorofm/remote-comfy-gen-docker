@@ -37,37 +37,11 @@ RUN pip install runpod boto3 requests websocket-client
 # run install.py if present. This avoids runtime dep installation.
 RUN pip install ultralytics
 RUN for repo in \
-    https://github.com/M1kep/ComfyLiterals.git \
-    https://github.com/yolain/ComfyUI-Easy-Use.git \
-    https://github.com/Fannovel16/ComfyUI-Frame-Interpolation.git \
-    https://github.com/kijai/ComfyUI-KJNodes.git \
-    https://github.com/theUpsider/ComfyUI-Logic.git \
     https://github.com/ltdrdata/ComfyUI-Manager.git \
-    https://github.com/gabe-init/ComfyUI-Openrouter_node.git \
-    https://github.com/Kosinkadink/ComfyUI-VideoHelperSuite.git \
-    https://github.com/wallen0322/ComfyUI-WanAnimate-Enhancer.git \
-    https://github.com/kijai/ComfyUI-WanAnimatePreprocess.git \
-    https://github.com/kijai/ComfyUI-WanVideoWrapper.git \
-    https://github.com/kijai/ComfyUI-segment-anything-2.git \
-    https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
-    https://github.com/JPS-GER/ComfyUI_JPS-Nodes.git \
-    https://github.com/chflame163/ComfyUI_LayerStyle.git \
-    https://github.com/aining2022/ComfyUI_Swwan.git \
-    https://github.com/ssitu/ComfyUI_UltimateSDUpscale.git \
-    https://github.com/cubiq/ComfyUI_essentials.git \
     https://github.com/ClownsharkBatwing/RES4LYF.git \
-    https://github.com/chrisgoringe/cg-image-picker.git \
-    https://github.com/chrisgoringe/cg-use-everywhere.git \
-    https://github.com/Jordach/comfy-plasma.git \
     https://github.com/Fannovel16/comfyui_controlnet_aux.git \
-    https://github.com/bash-j/mikey_nodes.git \
-    https://github.com/rgthree/rgthree-comfy.git \
-    https://github.com/WASasquatch/was-node-suite-comfyui.git \
-    https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
     https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
-    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
-    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
-    https://github.com/hinablue/ComfyUI_3dPoseEditor.git; \
+    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
@@ -123,10 +97,6 @@ COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
 RUN mkdir -p /ComfyUI/models/ultralytics/bbox && \
     wget -O /ComfyUI/models/ultralytics/bbox/face_yolov8m.pt \
     https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt && \
-    wget -O /ComfyUI/models/ultralytics/bbox/pussyV2.pt \
-    https://huggingface.co/vermin94/nipples_yolov8s.pt/resolve/main/pussyV2.pt && \
-    wget -O /ComfyUI/models/ultralytics/bbox/nipples.pt \
-    https://huggingface.co/vermin94/nipples_yolov8s.pt/resolve/main/nipples_yolov8s.pt && \
     ls -lh /ComfyUI/models/ultralytics/bbox/
 RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "/runpod-volume/ComfyUI/models/ultralytics/bbox"]:\n    folder_paths.add_model_folder_path("ultralytics_bbox", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_ultralytics_bbox.py
 # VideoX-Fun: LoadZImageControlNetInModel uses "model_patches" folder type,
