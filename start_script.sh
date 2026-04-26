@@ -96,52 +96,73 @@ if [ -f "$RUNTIME_VXFUN" ]; then
 fi
 
 
-# Patch download_handler.py: add HF token support for gated HuggingFace models
-DL_HANDLER="$RUNTIME_DIR/download_handler.py"
-if [ -f "$DL_HANDLER" ]; then
-    python3 - "$DL_HANDLER" << 'PYEOF'
+# Patch worker.py: add hf_download command for gated HuggingFace models
+if [ -f "$WORKER_PY" ]; then
+    python3 - "$WORKER_PY" << 'PYEOF'
 import sys, re
 
 path = sys.argv[1]
 with open(path) as f:
     content = f.read()
 
-if 'hf_token' in content:
-    print('[patch] download_handler.py: hf_token already present — skipping')
+if 'hf_download' in content:
+    print('[patch] worker.py: hf_download already present — skipping')
     sys.exit(0)
 
-# Inject hf_token extraction next to civitai_token extraction in handle()
-patched = re.sub(
-    r'(civitai_token\s*=\s*[^\n]+(?:job|input)[^\n]+\n)',
-    r'\1    hf_token = (job.get("input") or {}).get("hf_token", "") or ""\n',
-    content,
-    count=1,
-)
+HF_HANDLER = '''
+def _hf_download_handler(job):
+    import subprocess, time, os
+    start_t = time.time()
+    inp = job.get("input") or {}
+    downloads = inp.get("downloads", [])
+    hf_token = inp.get("hf_token", "") or ""
+    files = []
+    for dl in downloads:
+        url = dl["url"]
+        dest = dl["dest"]
+        filename = dl.get("filename") or url.split("/")[-1].split("?")[0]
+        dest_dir = f"/runpod-volume/ComfyUI/models/{dest}"
+        os.makedirs(dest_dir, exist_ok=True)
+        dest_path = f"{dest_dir}/{filename}"
+        if os.path.exists(dest_path):
+            size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 1)
+            files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
+            continue
+        headers = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []
+        cmd = ["aria2c", "-x16", "-s16", "-k1M", "--console-log-level=warn", "--continue=true"] + headers + ["-o", filename, "-d", dest_dir, url]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            raise RuntimeError(f"aria2c hf_download failed (exit {result.returncode}): {result.stdout}\\n{result.stderr}")
+        size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 1)
+        files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
+    return {"ok": True, "files": files, "elapsed_seconds": round(time.time() - start_t)}
 
-# Inject hf_token header into aria2c command after civitai header block
+'''
+
+# Find a good injection point: before the handler function or before def handler(
+import re
+# Inject the function definition before the main handler function
+match = re.search(r'^def handler\(', content, re.MULTILINE)
+if match:
+    pos = match.start()
+    patched = content[:pos] + HF_HANDLER + content[pos:]
+else:
+    patched = HF_HANDLER + content
+
+# Now add dispatch: find where command == "download" is handled and add elif for hf_download
 patched = re.sub(
-    r'(if\s+civitai_token[^:]*:\s*\n(\s+)[^\n]*Authorization[^\n]*civitai_token[^\n]*\n)',
-    r'\1\2if hf_token and "huggingface.co" in url:\n\2    cmd.append(f"--header=Authorization: Bearer {hf_token}")\n',
+    r'(command\s*==\s*["\']download["\'])',
+    r'command == "hf_download":\n        return _hf_download_handler(job)\n    elif \1',
     patched,
     count=1,
 )
 
-if patched == content:
-    print('[patch] download_handler.py: pattern not found — trying fallback')
-    # Fallback: inject before the first aria2c subprocess call
-    patched = re.sub(
-        r'(\[.*aria2c.*\])',
-        r'# hf_token injected by start_script patcher\n    _hf_hdr = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []\n    \1',
-        patched,
-        count=1,
-    )
-
 if patched != content:
     with open(path, 'w') as f:
         f.write(patched)
-    print('[patch] download_handler.py patched with hf_token support')
+    print('[patch] worker.py: hf_download command added OK')
 else:
-    print('[patch] download_handler.py: could not patch — manual fix needed')
+    print('[patch] worker.py: could not add hf_download — pattern not found')
 PYEOF
 fi
 
