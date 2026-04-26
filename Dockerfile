@@ -41,7 +41,10 @@ RUN for repo in \
     https://github.com/ClownsharkBatwing/RES4LYF.git \
     https://github.com/Fannovel16/comfyui_controlnet_aux.git \
     https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
-    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git; \
+    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
+    https://github.com/kijai/ComfyUI-KJNodes.git \
+    https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
+    https://github.com/rgthree/rgthree-comfy.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
