@@ -96,10 +96,10 @@ if [ -f "$RUNTIME_VXFUN" ]; then
 fi
 
 
-# Patch worker.py: add hf_download command for gated HuggingFace models
+# Patch worker.py: add hf_download command via monkey-patch appended to end of file
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
-import sys, re
+import sys
 
 path = sys.argv[1]
 with open(path) as f:
@@ -109,10 +109,13 @@ if 'hf_download' in content:
     print('[patch] worker.py: hf_download already present — skipping')
     sys.exit(0)
 
-HF_HANDLER = '''
+APPEND = '''
+
+# --- hf_download patch injected by start_script.sh ---
+import subprocess as _subprocess, time as _time, os as _os
+
 def _hf_download_handler(job):
-    import subprocess, time, os
-    start_t = time.time()
+    start_t = _time.time()
     inp = job.get("input") or {}
     downloads = inp.get("downloads", [])
     hf_token = inp.get("hf_token", "") or ""
@@ -122,47 +125,34 @@ def _hf_download_handler(job):
         dest = dl["dest"]
         filename = dl.get("filename") or url.split("/")[-1].split("?")[0]
         dest_dir = f"/runpod-volume/ComfyUI/models/{dest}"
-        os.makedirs(dest_dir, exist_ok=True)
+        _os.makedirs(dest_dir, exist_ok=True)
         dest_path = f"{dest_dir}/{filename}"
-        if os.path.exists(dest_path):
-            size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 1)
+        if _os.path.exists(dest_path):
+            size_mb = round(_os.path.getsize(dest_path) / (1024 * 1024), 1)
             files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
             continue
         headers = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []
         cmd = ["aria2c", "-x16", "-s16", "-k1M", "--console-log-level=warn", "--continue=true"] + headers + ["-o", filename, "-d", dest_dir, url]
-        result = subprocess.run(cmd, capture_output=True, text=True)
+        result = _subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             raise RuntimeError(f"aria2c hf_download failed (exit {result.returncode}): {result.stdout}\\n{result.stderr}")
-        size_mb = round(os.path.getsize(dest_path) / (1024 * 1024), 1)
+        size_mb = round(_os.path.getsize(dest_path) / (1024 * 1024), 1)
         files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
-    return {"ok": True, "files": files, "elapsed_seconds": round(time.time() - start_t)}
+    return {"ok": True, "files": files, "elapsed_seconds": round(_time.time() - start_t)}
 
+_original_handler = handler
+
+def handler(job):
+    command = (job.get("input") or {}).get("command", "")
+    if command == "hf_download":
+        return _hf_download_handler(job)
+    return _original_handler(job)
+# --- end hf_download patch ---
 '''
 
-# Find a good injection point: before the handler function or before def handler(
-import re
-# Inject the function definition before the main handler function
-match = re.search(r'^def handler\(', content, re.MULTILINE)
-if match:
-    pos = match.start()
-    patched = content[:pos] + HF_HANDLER + content[pos:]
-else:
-    patched = HF_HANDLER + content
-
-# Now add dispatch: find where command == "download" is handled and add elif for hf_download
-patched = re.sub(
-    r'(command\s*==\s*["\']download["\'])',
-    r'command == "hf_download":\n        return _hf_download_handler(job)\n    elif \1',
-    patched,
-    count=1,
-)
-
-if patched != content:
-    with open(path, 'w') as f:
-        f.write(patched)
-    print('[patch] worker.py: hf_download command added OK')
-else:
-    print('[patch] worker.py: could not add hf_download — pattern not found')
+with open(path, 'a') as f:
+    f.write(APPEND)
+print('[patch] worker.py: hf_download appended OK')
 PYEOF
 fi
 
