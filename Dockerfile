@@ -106,6 +106,7 @@ RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "
 # but our ControlNet weights live in the "controlnet" folder on the volume.
 # Register controlnet paths as additional model_patches search paths.
 RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/controlnet", "/runpod-volume/ComfyUI/models/controlnet"]:\n    folder_paths.add_model_folder_path("model_patches", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_vxfun_model_patches.py
+COPY sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 COPY log_forwarder.py /log_forwarder.py
 COPY start_script.sh /start_script.sh
 RUN chmod +x /start_script.sh
