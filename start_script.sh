@@ -96,5 +96,54 @@ if [ -f "$RUNTIME_VXFUN" ]; then
 fi
 
 
+# Patch download_handler.py: add HF token support for gated HuggingFace models
+DL_HANDLER="$RUNTIME_DIR/download_handler.py"
+if [ -f "$DL_HANDLER" ]; then
+    python3 - "$DL_HANDLER" << 'PYEOF'
+import sys, re
+
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+if 'hf_token' in content:
+    print('[patch] download_handler.py: hf_token already present — skipping')
+    sys.exit(0)
+
+# Inject hf_token extraction next to civitai_token extraction in handle()
+patched = re.sub(
+    r'(civitai_token\s*=\s*[^\n]+(?:job|input)[^\n]+\n)',
+    r'\1    hf_token = (job.get("input") or {}).get("hf_token", "") or ""\n',
+    content,
+    count=1,
+)
+
+# Inject hf_token header into aria2c command after civitai header block
+patched = re.sub(
+    r'(if\s+civitai_token[^:]*:\s*\n(\s+)[^\n]*Authorization[^\n]*civitai_token[^\n]*\n)',
+    r'\1\2if hf_token and "huggingface.co" in url:\n\2    cmd.append(f"--header=Authorization: Bearer {hf_token}")\n',
+    patched,
+    count=1,
+)
+
+if patched == content:
+    print('[patch] download_handler.py: pattern not found — trying fallback')
+    # Fallback: inject before the first aria2c subprocess call
+    patched = re.sub(
+        r'(\[.*aria2c.*\])',
+        r'# hf_token injected by start_script patcher\n    _hf_hdr = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []\n    \1',
+        patched,
+        count=1,
+    )
+
+if patched != content:
+    with open(path, 'w') as f:
+        f.write(patched)
+    print('[patch] download_handler.py patched with hf_token support')
+else:
+    print('[patch] download_handler.py: could not patch — manual fix needed')
+PYEOF
+fi
+
 echo "[start_script] Launching runtime start.sh..."
 exec bash "$RUNTIME_DIR/start.sh"
