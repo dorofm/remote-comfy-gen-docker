@@ -96,21 +96,20 @@ if [ -f "$RUNTIME_VXFUN" ]; then
 fi
 
 
-# Patch worker.py: add hf_download command via monkey-patch appended to end of file
+# Patch worker.py: inject hf_download wrapper BEFORE runpod.serverless.start()
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
-import sys
+import sys, re
 
 path = sys.argv[1]
 with open(path) as f:
     content = f.read()
 
-if 'hf_download' in content:
+if '_original_hf_handler' in content:
     print('[patch] worker.py: hf_download already present — skipping')
     sys.exit(0)
 
-APPEND = '''
-
+HF_CODE = '''
 # --- hf_download patch injected by start_script.sh ---
 import subprocess as _subprocess, time as _time, os as _os
 
@@ -133,26 +132,35 @@ def _hf_download_handler(job):
             continue
         headers = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []
         cmd = ["aria2c", "-x16", "-s16", "-k1M", "--console-log-level=warn", "--continue=true"] + headers + ["-o", filename, "-d", dest_dir, url]
-        result = _subprocess.run(cmd, capture_output=True, text=True)
-        if result.returncode != 0:
-            raise RuntimeError(f"aria2c hf_download failed (exit {result.returncode}): {result.stdout}\\n{result.stderr}")
+        r = _subprocess.run(cmd, capture_output=True, text=True)
+        if r.returncode != 0:
+            raise RuntimeError(f"aria2c hf_download failed (exit {r.returncode}): {r.stdout}\\n{r.stderr}")
         size_mb = round(_os.path.getsize(dest_path) / (1024 * 1024), 1)
         files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
     return {"ok": True, "files": files, "elapsed_seconds": round(_time.time() - start_t)}
 
-_original_handler = handler
-
+_original_hf_handler = handler
 def handler(job):
-    command = (job.get("input") or {}).get("command", "")
-    if command == "hf_download":
+    if (job.get("input") or {}).get("command") == "hf_download":
         return _hf_download_handler(job)
-    return _original_handler(job)
+    return _original_hf_handler(job)
 # --- end hf_download patch ---
+
 '''
 
-with open(path, 'a') as f:
-    f.write(APPEND)
-print('[patch] worker.py: hf_download appended OK')
+# Inject BEFORE runpod.serverless.start — search for that call
+match = re.search(r'^(runpod\.serverless\.start|runpod\.serverless\.utils\.rp_serve_serverless)', content, re.MULTILINE)
+if match:
+    pos = match.start()
+    patched = content[:pos] + HF_CODE + content[pos:]
+    with open(path, 'w') as f:
+        f.write(patched)
+    print('[patch] worker.py: hf_download injected before serverless.start OK')
+else:
+    print('[patch] worker.py: runpod.serverless.start not found — appending')
+    with open(path, 'a') as f:
+        f.write(HF_CODE)
+    print('[patch] worker.py: hf_download appended OK')
 PYEOF
 fi
 
