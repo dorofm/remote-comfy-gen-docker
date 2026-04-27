@@ -165,4 +165,20 @@ PYEOF
 fi
 
 echo "[start_script] Launching runtime start.sh..."
+
+# --- Fix: replace scaled Qwen model with non-scaled version ---
+QWEN_PATH="/runpod-volume/ComfyUI/models/diffusion_models/qwen_ie_2511_fp8.safetensors"
+QWEN_FIXED_MARKER="/runpod-volume/.qwen_nonscaled_v1"
+if [ ! -f "$QWEN_FIXED_MARKER" ]; then
+    echo "[start_script] Replacing Qwen scaled model with non-scaled version (~19GB)..."
+    rm -f "$QWEN_PATH"
+    aria2c -x16 -s16 -k1M --file-allocation=none --console-log-level=warn \
+        -o "qwen_ie_2511_fp8.safetensors" \
+        -d "/runpod-volume/ComfyUI/models/diffusion_models" \
+        "https://huggingface.co/Comfy-Org/Qwen-Image_ComfyUI/resolve/main/split_files/diffusion_models/qwen_image_fp8_e4m3fn.safetensors"
+    touch "$QWEN_FIXED_MARKER"
+    echo "[start_script] Qwen model replaced OK"
+fi
+# --- end Qwen model fix ---
+
 exec bash "$RUNTIME_DIR/start.sh"
