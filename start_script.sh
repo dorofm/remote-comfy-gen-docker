@@ -131,7 +131,7 @@ def _hf_download_handler(job):
             files.append({"filename": filename, "dest": dest, "path": dest_path, "size_mb": size_mb})
             continue
         headers = [f"--header=Authorization: Bearer {hf_token}"] if (hf_token and "huggingface.co" in url) else []
-        cmd = ["aria2c", "-x16", "-s16", "-k1M", "--console-log-level=warn", "--continue=true"] + headers + ["-o", filename, "-d", dest_dir, url]
+        cmd = ["aria2c", "-x16", "-s16", "-k1M", "--file-allocation=none", "--console-log-level=warn", "--continue=true"] + headers + ["-o", filename, "-d", dest_dir, url]
         r = _subprocess.run(cmd, capture_output=True, text=True)
         if r.returncode != 0:
             raise RuntimeError(f"aria2c hf_download failed (exit {r.returncode}): {r.stdout}\\n{r.stderr}")
