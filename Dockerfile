@@ -44,7 +44,8 @@ RUN for repo in \
     https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
     https://github.com/kijai/ComfyUI-KJNodes.git \
     https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
-    https://github.com/rgthree/rgthree-comfy.git; \
+    https://github.com/rgthree/rgthree-comfy.git \
+    https://github.com/obisin/ComfyUI-FSampler.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
