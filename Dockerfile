@@ -45,7 +45,10 @@ RUN for repo in \
     https://github.com/kijai/ComfyUI-KJNodes.git \
     https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
     https://github.com/rgthree/rgthree-comfy.git \
-    https://github.com/obisin/ComfyUI-FSampler.git; \
+    https://github.com/obisin/ComfyUI-FSampler.git \
+    https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
+    https://github.com/ka-puna/comfyui-yanc.git \
+    https://github.com/yolain/ComfyUI-Easy-Use.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
@@ -77,6 +80,11 @@ RUN cd /ComfyUI/custom_nodes && \
     touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/z_image/__init__.py && \
     touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/annotator/__init__.py
 COPY vxfun_init.py /ComfyUI/custom_nodes/VideoX-Fun/__init__.py
+
+# DarkHub Seedream 4.5 custom node (bundled locally — no public GitHub repo confirmed)
+COPY ComfyUI-darkHUB-Seedream4.5 /ComfyUI/custom_nodes/ComfyUI-darkHUB-Seedream4.5
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-darkHUB-Seedream4.5/requirements.txt \
+    --constraint /torch-constraint.txt || echo "WARNING: darkHUB deps failed (continuing)"
 
 # Verify key imports (fail fast if something is broken)
 RUN python3 -c "\
