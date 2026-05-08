@@ -58,8 +58,12 @@ if [ -f "/runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt" ] && \
     ln -s /runpod-volume/ComfyUI/models/ultralytics/face_yolov8m.pt \
           /runpod-volume/ComfyUI/models/ultralytics/bbox/face_yolov8m.pt
 fi
-# Patch worker.py: handle prefixed model names like "bbox/face_yolov8m.pt"
+# Restore worker.py from git before applying any patches (fixes corruption from previous runs)
 WORKER_PY="$RUNTIME_DIR/worker.py"
+if [ -f "$WORKER_PY" ]; then
+    (cd "$RUNTIME_DIR" && git checkout -- worker.py 2>/dev/null && echo "[start_script] worker.py restored from git") || true
+fi
+# Patch worker.py: handle prefixed model names like "bbox/face_yolov8m.pt"
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
 import sys
@@ -100,10 +104,6 @@ fi
 # Bundled nodes (e.g. DarkHubFreepikStudio) are loaded by ComfyUI but not in
 # ComfyUI-Manager's registry — worker.py blocks them on warm starts.
 # Fix: inject _is_node_loaded helper + _bundled_node_bypass marker.
-# Always restore worker.py from git first to fix any prior corruption.
-if [ -f "$WORKER_PY" ]; then
-    (cd "$RUNTIME_DIR" && git checkout -- worker.py 2>/dev/null && echo "[start_script] worker.py restored from git") || true
-fi
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
 import sys, re
