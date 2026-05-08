@@ -96,6 +96,76 @@ if [ -f "$RUNTIME_VXFUN" ]; then
 fi
 
 
+# Patch worker.py: bypass "Missing custom node" check for bundled nodes
+# Bundled nodes (e.g. DarkHubFreepikStudio) are loaded by ComfyUI but not in
+# ComfyUI-Manager's registry — worker.py blocks them on warm starts.
+# Fix: when the check fires, also verify against ComfyUI's /object_info API.
+if [ -f "$WORKER_PY" ]; then
+    python3 - "$WORKER_PY" << 'PYEOF'
+import sys, re
+
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+if '_bundled_node_bypass' in content:
+    print('[patch] worker.py: bundled node bypass already present — skipping')
+    sys.exit(0)
+
+BYPASS_CODE = '''
+# --- bundled node bypass patch ---
+_COMFYUI_API = "http://127.0.0.1:8188"
+
+def _is_node_loaded(node_type):
+    """Check if a node class is actually loaded in the running ComfyUI instance."""
+    try:
+        import urllib.request as _ur, json as _json
+        with _ur.urlopen(f"{_COMFYUI_API}/object_info/{node_type}", timeout=5) as r:
+            return r.status == 200
+    except Exception:
+        pass
+    try:
+        import urllib.request as _ur, json as _json
+        with _ur.urlopen(f"{_COMFYUI_API}/object_info", timeout=5) as r:
+            data = _json.loads(r.read())
+            return node_type in data
+    except Exception:
+        return False
+_bundled_node_bypass = True
+# --- end bundled node bypass patch ---
+
+'''
+
+# Inject right before the handler function or at start of file
+# Find first function/class definition to inject before it
+match = re.search(r'^(def |class |import |from )', content, re.MULTILINE)
+if match:
+    pos = match.start()
+    content = content[:pos] + BYPASS_CODE + content[pos:]
+else:
+    content = BYPASS_CODE + content
+
+# Now find and patch the "Missing custom node" error to also check ComfyUI API
+# Pattern: raise Exception / return error with "Missing custom node" message
+content = re.sub(
+    r'(["\'"]Missing custom node[^"\']*["\'"][^}]*)',
+    r'\1  # patched: see _is_node_loaded',
+    content
+)
+# More aggressive: find the condition that leads to "Missing custom node"
+# and add a bypass when node is actually loaded
+content = re.sub(
+    r'("Missing custom node: ")\s*\+\s*(\w+)',
+    r'(lambda _n: _n if not _is_node_loaded(_n) else None)(\2) and (\1 + \2)',
+    content
+)
+
+with open(path, 'w') as f:
+    f.write(content)
+print('[patch] worker.py: bundled node bypass injected OK')
+PYEOF
+fi
+
 # Patch worker.py: inject hf_download wrapper BEFORE runpod.serverless.start()
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
