@@ -1,0 +1,103 @@
+FROM nvidia/cuda:12.8.1-cudnn-devel-ubuntu24.04
+
+ENV DEBIAN_FRONTEND=noninteractive \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_PREFER_BINARY=1 \
+    CMAKE_BUILD_PARALLEL_LEVEL=8
+
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    python3.12 python3.12-venv python3.12-dev python3-pip \
+    build-essential gcc g++ ninja-build \
+    git git-lfs aria2 ffmpeg wget curl ca-certificates \
+    libgl1 libglib2.0-0 libopenblas-dev liblapack-dev \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python3 \
+    && ln -sf /usr/bin/python3.12 /usr/bin/python \
+    && python3.12 -m venv /opt/venv \
+    && rm -rf /var/lib/apt/lists/*
+
+ENV PATH="/opt/venv/bin:$PATH"
+
+RUN pip install --upgrade pip setuptools wheel packaging && \
+    git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
+    pip install -r /ComfyUI/requirements.txt
+
+RUN pip freeze | grep -E "^(torch|torchvision|torchaudio|torchsde)==" > /torch-constraint.txt
+
+# No runpod SDK — use boto3 for S3 uploads
+RUN pip install boto3 requests websocket-client
+
+RUN pip install ultralytics
+RUN for repo in \
+    https://github.com/ltdrdata/ComfyUI-Manager.git \
+    https://github.com/ClownsharkBatwing/RES4LYF.git \
+    https://github.com/Fannovel16/comfyui_controlnet_aux.git \
+    https://github.com/ltdrdata/ComfyUI-Impact-Pack.git \
+    https://github.com/ltdrdata/ComfyUI-Impact-Subpack.git \
+    https://github.com/kijai/ComfyUI-KJNodes.git \
+    https://github.com/Suzie1/ComfyUI_Comfyroll_CustomNodes.git \
+    https://github.com/rgthree/rgthree-comfy.git \
+    https://github.com/obisin/ComfyUI-FSampler.git \
+    https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
+    https://github.com/ka-puna/comfyui-yanc.git \
+    https://github.com/yolain/ComfyUI-Easy-Use.git; \
+  do \
+    cd /ComfyUI/custom_nodes; \
+    repo_dir=$(basename "$repo" .git); \
+    echo "=== Installing $repo_dir ==="; \
+    git clone --depth 1 "$repo"; \
+    if [ -f "/ComfyUI/custom_nodes/$repo_dir/requirements.txt" ]; then \
+      pip install -r "/ComfyUI/custom_nodes/$repo_dir/requirements.txt" \
+        --constraint /torch-constraint.txt || \
+        echo "WARNING: some deps failed for $repo_dir (continuing)"; \
+    fi; \
+    if [ -f "/ComfyUI/custom_nodes/$repo_dir/install.py" ]; then \
+      cd "/ComfyUI/custom_nodes/$repo_dir" && \
+      python install.py || \
+        echo "WARNING: install.py failed for $repo_dir (continuing)"; \
+    fi; \
+  done
+
+RUN cd /ComfyUI/custom_nodes && \
+    git clone --depth 1 https://github.com/aigc-apps/VideoX-Fun.git && \
+    pip install -r /ComfyUI/custom_nodes/VideoX-Fun/requirements.txt \
+        --constraint /torch-constraint.txt || \
+        echo "WARNING: some VideoX-Fun deps failed (continuing)" && \
+    pip install -e /ComfyUI/custom_nodes/VideoX-Fun/ --constraint /torch-constraint.txt || \
+        echo "WARNING: VideoX-Fun editable install failed (continuing)" && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/__init__.py && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/z_image/__init__.py && \
+    touch /ComfyUI/custom_nodes/VideoX-Fun/comfyui/annotator/__init__.py
+COPY vxfun_init.py /ComfyUI/custom_nodes/VideoX-Fun/__init__.py
+
+COPY ComfyUI-darkHUB-Seedream4.5 /ComfyUI/custom_nodes/ComfyUI-darkHUB-Seedream4.5
+RUN pip install -r /ComfyUI/custom_nodes/ComfyUI-darkHUB-Seedream4.5/requirements.txt \
+    --constraint /torch-constraint.txt || echo "WARNING: darkHUB deps failed (continuing)"
+
+RUN python3 -c "\
+import torch; print(f'PyTorch {torch.__version__}'); \
+import safetensors; print(f'safetensors {safetensors.__version__}'); \
+import transformers; print(f'transformers {transformers.__version__}'); \
+import kornia; print('kornia OK'); \
+import spandrel; print('spandrel OK'); \
+import videox_fun; print(f'videox_fun OK'); \
+"
+
+RUN python3 -c "import transformers; tok = transformers.AutoTokenizer.from_pretrained('Qwen/Qwen3-4B', trust_remote_code=True); tok.save_pretrained('/ComfyUI/models/Fun_Models/qwen3_tokenizer'); print('qwen3_tokenizer saved')"
+
+COPY extra_model_paths.yaml /ComfyUI/extra_model_paths.yaml
+RUN mkdir -p /ComfyUI/models/ultralytics/bbox && \
+    wget -O /ComfyUI/models/ultralytics/bbox/face_yolov8m.pt \
+    https://huggingface.co/Bingsu/adetailer/resolve/main/face_yolov8m.pt
+RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "/runpod-volume/ComfyUI/models/ultralytics/bbox"]:\n    folder_paths.add_model_folder_path("ultralytics_bbox", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_ultralytics_bbox.py
+RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/controlnet", "/runpod-volume/ComfyUI/models/controlnet"]:\n    folder_paths.add_model_folder_path("model_patches", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_vxfun_model_patches.py
+
+COPY sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
+COPY log_forwarder.py /log_forwarder.py
+COPY vast_server.py /vast_server.py
+COPY start_vast.sh /start_vast.sh
+RUN chmod +x /start_vast.sh
+
+EXPOSE 8080
+
+CMD ["/start_vast.sh"]
