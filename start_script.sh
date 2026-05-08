@@ -99,7 +99,11 @@ fi
 # Patch worker.py: bypass "Missing custom node" check for bundled nodes
 # Bundled nodes (e.g. DarkHubFreepikStudio) are loaded by ComfyUI but not in
 # ComfyUI-Manager's registry — worker.py blocks them on warm starts.
-# Fix: when the check fires, also verify against ComfyUI's /object_info API.
+# Fix: inject _is_node_loaded helper + _bundled_node_bypass marker.
+# Always restore worker.py from git first to fix any prior corruption.
+if [ -f "$WORKER_PY" ]; then
+    (cd "$RUNTIME_DIR" && git checkout -- worker.py 2>/dev/null && echo "[start_script] worker.py restored from git") || true
+fi
 if [ -f "$WORKER_PY" ]; then
     python3 - "$WORKER_PY" << 'PYEOF'
 import sys, re
@@ -144,21 +148,6 @@ if match:
     content = content[:pos] + BYPASS_CODE + content[pos:]
 else:
     content = BYPASS_CODE + content
-
-# Now find and patch the "Missing custom node" error to also check ComfyUI API
-# Pattern: raise Exception / return error with "Missing custom node" message
-content = re.sub(
-    r'(["\'"]Missing custom node[^"\']*["\'"][^}]*)',
-    r'\1  # patched: see _is_node_loaded',
-    content
-)
-# More aggressive: find the condition that leads to "Missing custom node"
-# and add a bypass when node is actually loaded
-content = re.sub(
-    r'("Missing custom node: ")\s*\+\s*(\w+)',
-    r'(lambda _n: _n if not _is_node_loaded(_n) else None)(\2) and (\1 + \2)',
-    content
-)
 
 with open(path, 'w') as f:
     f.write(content)
