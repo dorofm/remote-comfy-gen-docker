@@ -29,8 +29,8 @@ RUN pip install --upgrade pip setuptools wheel packaging && \
 RUN pip freeze | grep -E "^(torch|torchvision|torchaudio|torchsde)==" > /torch-constraint.txt
 
 
-# RunPod SDK + runtime deps
-RUN pip install runpod boto3 requests websocket-client
+# RunPod SDK + vast.ai server deps + runtime deps
+RUN pip install runpod boto3 requests websocket-client fastapi uvicorn[standard]
 
 # Clone and install all custom nodes (baked for fast cold starts)
 # Each node: clone repo, install requirements.txt (constrained to frozen torch),
@@ -117,6 +117,7 @@ RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/ultralytics/bbox", "
 RUN printf 'import folder_paths\nfor p in ["/ComfyUI/models/controlnet", "/runpod-volume/ComfyUI/models/controlnet"]:\n    folder_paths.add_model_folder_path("model_patches", p)\nNODE_CLASS_MAPPINGS = {}\n' > /ComfyUI/custom_nodes/fix_vxfun_model_patches.py
 COPY sitecustomize.py /opt/venv/lib/python3.12/site-packages/sitecustomize.py
 COPY log_forwarder.py /log_forwarder.py
+COPY vast_server.py /vast_server.py
 COPY start_script.sh /start_script.sh
 RUN chmod +x /start_script.sh
 

@@ -240,4 +240,20 @@ if [ ! -f "$QWEN_FIXED_MARKER" ]; then
 fi
 # --- end Qwen model fix ---
 
-exec bash "$RUNTIME_DIR/start.sh"
+if [[ "${VAST_MODE:-}" == "1" ]]; then
+    echo "[start_script] VAST_MODE detected — starting ComfyUI + vast_server.py"
+    # Start ComfyUI in background (reuse runtime start.sh but don't exec into worker.py)
+    # Patch the runtime start.sh to skip the worker.py launch
+    if [ -f "$RUNTIME_DIR/start.sh" ]; then
+        # Run start.sh but replace the final worker launch with our vast_server
+        sed 's/exec python3 worker\.py.*//' "$RUNTIME_DIR/start.sh" > /tmp/vast_start.sh
+        bash /tmp/vast_start.sh &
+    else
+        # Fallback: start ComfyUI directly
+        cd /ComfyUI && python3 main.py --listen 0.0.0.0 --port 8188 --disable-auto-launch &
+    fi
+    # Wait for ComfyUI and start vast_server
+    exec python3 /vast_server.py
+else
+    exec bash "$RUNTIME_DIR/start.sh"
+fi
