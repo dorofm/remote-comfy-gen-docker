@@ -10,6 +10,12 @@ fi
 
 echo "[start_script] Starting ComfyUI serverless worker..."
 
+# vast.ai mounts volume at /workspace; symlink to /runpod-volume for compatibility
+if [[ -d "/workspace" && ! -L "/runpod-volume" && ! -d "/runpod-volume" ]]; then
+    ln -s /workspace /runpod-volume
+    echo "[start_script] Symlinked /workspace -> /runpod-volume"
+fi
+
 RUNTIME_DIR="/runpod-volume/runtime"
 RUNTIME_REPO_URL="${RUNTIME_REPO_URL:-}"
 RUNTIME_REPO_REF="${RUNTIME_REPO_REF:-main}"
@@ -17,8 +23,15 @@ GITHUB_PAT="${GITHUB_PAT:-}"
 
 # --- Clone or pull runtime repo ---
 if [ -z "$RUNTIME_REPO_URL" ]; then
-    echo "[start_script] ERROR: RUNTIME_REPO_URL not set"
-    exit 1
+    if [[ "${VAST_MODE:-}" == "1" ]]; then
+        echo "[start_script] RUNTIME_REPO_URL not set — VAST_MODE: starting ComfyUI directly"
+        mkdir -p /runpod-volume/ComfyUI/models
+        cd /ComfyUI && python3 main.py --listen 0.0.0.0 --port 8188 --disable-auto-launch &
+        exec python3 /vast_server.py
+    else
+        echo "[start_script] ERROR: RUNTIME_REPO_URL not set"
+        exit 1
+    fi
 fi
 
 # Inject PAT into URL if provided
