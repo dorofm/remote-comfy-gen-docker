@@ -14,13 +14,16 @@ jobs:
       - name: Log in to Docker Hub
         uses: docker/login-action@v3
         with:
-          username: ${{ secrets.DOCKERHUB_USER }}
-          password: ${{ secrets.DOCKERHUB_PAT }}
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
 
+      - uses: docker/setup-buildx-action@v3
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
           context: .
           file: Dockerfile.animator
           push: true
-          tags: dorofm/comfyui-animator:latest
+          tags: ${{ secrets.DOCKERHUB_USERNAME }}/comfyui-animator:latest
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
