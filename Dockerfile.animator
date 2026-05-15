@@ -24,7 +24,7 @@ RUN pip install --upgrade pip setuptools wheel packaging && \
 
 RUN pip freeze | grep -E "^(torch|torchvision|torchaudio|torchsde)==" > /torch-constraint.txt
 
-RUN pip install boto3 requests websocket-client fastapi uvicorn[standard]
+RUN pip install runpod boto3 requests websocket-client fastapi uvicorn[standard]
 
 # Custom nodes for WAN/Animator stack
 RUN for repo in \
@@ -49,6 +49,7 @@ RUN for repo in \
     https://github.com/pythongosssss/ComfyUI-Custom-Scripts.git \
     https://github.com/teskor-hub/comfyui-teskors-utils.git \
     https://github.com/PozzettiAndrea/ComfyUI-SAM3.git \
+    https://github.com/jnxmx/ComfyUI_HuggingFace_Downloader.git \
     https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git; \
   do \
     cd /ComfyUI/custom_nodes; \
