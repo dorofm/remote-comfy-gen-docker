@@ -81,7 +81,6 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"message\": \"${MSG}\", \"source\": \"circleci\"}"
 
-jobs:
   build_and_push_animator:
     executor: docker-dind
     steps:
