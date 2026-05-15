@@ -81,6 +81,60 @@ jobs:
               -H "Content-Type: application/json" \
               -d "{\"message\": \"${MSG}\", \"source\": \"circleci\"}"
 
+jobs:
+  build_and_push_animator:
+    executor: docker-dind
+    steps:
+      - checkout
+
+      - run:
+          name: Log in to Docker Hub
+          command: |
+            echo "$DOCKERHUB_PAT" | docker login -u "$DOCKERHUB_USER" --password-stdin
+
+      - run:
+          name: Get commit info
+          command: |
+            echo "export COMMIT_MSG=\"$(git log -1 --pretty=%s | tr '"' "'" )\"" >> "$BASH_ENV"
+
+      - notify-flowbot:
+          message: "Tell me that the comfyui-animator:${CIRCLE_TAG:-latest} Docker build has started. Commit ${CIRCLE_SHA1:0:7}: ${COMMIT_MSG}"
+
+      - run:
+          name: Build & push ComfyUI animator image
+          command: |
+            TAG="${CIRCLE_TAG#animator-}"
+            TAG="${TAG:-latest}"
+            IMG="docker.io/$DOCKERHUB_USER/comfyui-animator"
+
+            docker build \
+              --progress=plain \
+              -f Dockerfile.animator \
+              -t "${IMG}:${TAG}" .
+            docker push "${IMG}:${TAG}"
+            touch /tmp/build_success
+
+      - run:
+          name: Notify FlowBot — animator build complete
+          when: always
+          command: |
+            TAG="${CIRCLE_TAG#animator-}"
+            TAG="${TAG:-latest}"
+            if [ -z "$FLOWBOT_WEBHOOK_URL" ] || [ -z "$FLOWBOT_WEBHOOK_TOKEN" ]; then
+              echo "Missing webhook env vars, skipping notification."
+              exit 0
+            fi
+            WEBHOOK="${FLOWBOT_WEBHOOK_URL}/hooks/agent"
+            if [ -f /tmp/build_success ]; then
+              MSG="Tell me that the comfyui-animator:${TAG} Docker build succeeded and was pushed to Docker Hub. Commit ${CIRCLE_SHA1:0:7}: ${COMMIT_MSG}"
+            else
+              MSG="Tell me that the comfyui-animator:${TAG} Docker build failed. Commit ${CIRCLE_SHA1:0:7}: ${COMMIT_MSG}. Logs: ${CIRCLE_BUILD_URL}"
+            fi
+            curl -s -X POST "${WEBHOOK}" \
+              -H "Authorization: Bearer ${FLOWBOT_WEBHOOK_TOKEN}" \
+              -H "Content-Type: application/json" \
+              -d "{\"message\": \"${MSG}\", \"source\": \"circleci\"}"
+
 workflows:
   version: 2
   build_on_tag:
@@ -92,5 +146,14 @@ workflows:
           filters:
             tags:
               only: /^v.*$/
+            branches:
+              ignore: /.*/
+      - build_and_push_animator:
+          context:
+            - docker-hub
+            - flowbot-webhook-token
+          filters:
+            tags:
+              only: /^animator-.*$/
             branches:
               ignore: /.*/
