@@ -22,7 +22,7 @@ ENV PATH="/opt/venv/bin:$PATH"
 # ComfyUI + all deps (includes torch, safetensors, transformers, etc.)
 # Keep ComfyUI in /ComfyUI (baked into image) for fast cold starts
 RUN pip install --upgrade pip setuptools wheel packaging && \
-    git clone --depth 1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
+    git clone --depth 1 --branch v0.30.1 https://github.com/comfyanonymous/ComfyUI.git /ComfyUI && \
     pip install -r /ComfyUI/requirements.txt
 
 # Freeze torch versions to prevent custom node deps from upgrading/downgrading
