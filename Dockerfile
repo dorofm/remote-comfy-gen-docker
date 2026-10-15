@@ -48,7 +48,8 @@ RUN for repo in \
     https://github.com/obisin/ComfyUI-FSampler.git \
     https://github.com/numz/ComfyUI-SeedVR2_VideoUpscaler.git \
     https://github.com/ka-puna/comfyui-yanc.git \
-    https://github.com/yolain/ComfyUI-Easy-Use.git; \
+    https://github.com/yolain/ComfyUI-Easy-Use.git \
+    https://github.com/yolain/ComfyUI-Easy-Sam3.git; \
   do \
     cd /ComfyUI/custom_nodes; \
     repo_dir=$(basename "$repo" .git); \
@@ -95,6 +96,7 @@ import kornia; print('kornia OK'); \
 import spandrel; print('spandrel OK'); \
 import videox_fun; print(f'videox_fun OK'); \
 import videox_fun.models; print('videox_fun.models OK'); \
+import timm, decord, ftfy, iopath, pycocotools; print('sam3 deps OK'); \
 "
 
 # qwen3_tokenizer: needed by VideoX-Fun LoadZImageTextEncoderModel

@@ -19,4 +19,5 @@ network_volume:
     model_patches: model_patches
     detection: detection
     ultralytics_bbox: ultralytics/bbox
+    sam3: sam3
     vae: vae
